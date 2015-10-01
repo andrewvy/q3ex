@@ -57,7 +57,7 @@ defmodule Q3ex.Client do
       cvar_list: state.cvar_list
     }
 
-    {:reply, {:ok, new_state}, new_state}
+    {:reply, {:ok, self}, new_state}
   end
 
   def handle_call(:get_status, from, state) do
