@@ -30,9 +30,22 @@ defmodule Q3ex.Client do
     {:ok, state}
   end
 
-  def handle_cast({:msg_receive, binary}, state) do
-    IO.puts "RECEIVED"
-    {:noreply, state}
+  def handle_cast({:msg_receive, packet}, state) do
+    case packet do
+      [255, 255, 255, 255 | rest] ->
+        {event, cvar_list, formatted_players} = parse_get_status(rest)
+
+        new_state = %{
+          connection: state.connection,
+          poll_rate: state.poll_rate,
+          player_list: formatted_players,
+          cvar_list: cvar_list
+        }
+
+        {:noreply, new_state}
+
+      _ -> {:noreply, state}
+    end
   end
 
   def handle_cast({:set_poll_rate, poll_rate}, state) do
@@ -47,17 +60,20 @@ defmodule Q3ex.Client do
   end
 
   def handle_call({:connect, address, port}, from, state) do
-    {:ok, connection} = start_connection({self, address, port})
-    Process.link(connection)
+    case start_connection({self, address, port}) do
+      {:ok, connection} ->
+        Process.link(connection)
+        new_state = %{
+          connection: connection,
+          poll_rate: state.poll_rate,
+          player_list: state.player_list,
+          cvar_list: state.cvar_list
+        }
 
-    new_state = %{
-      connection: connection,
-      poll_rate: state.poll_rate,
-      player_list: state.player_list,
-      cvar_list: state.cvar_list
-    }
+        {:reply, {:ok, self}, new_state}
 
-    {:reply, {:ok, self}, new_state}
+      {:err} -> {:reply, {:err}, state}
+    end
   end
 
   def handle_call(:get_status, from, state) do
@@ -73,13 +89,16 @@ defmodule Q3ex.Client do
     IO.puts request
   end
 
-  # SOCKET
+  # PACKET HANDLE
 
-  def setup_socket(port) do
-    :gen_udp.open(port, [])
-  end
+  def parse_get_status(packet) do
+    [event, cvars | players] = String.split(to_string(packet), "\n", trim: true)
+    cvar_list = String.split(cvars, "\\", trim: true) |> Enum.chunk(2) |> Enum.map(fn (elem) -> List.to_tuple(elem) end)
 
-  def recv(socket, length) do
+    formatted_players = Enum.map players, fn (player) ->
+      String.replace(player, ~r/"(.+)"/, "\\1\\") |> String.replace("^w*ES*", "") |> String.replace("\\", "") |> String.split()
+    end
 
+    {event, cvar_list, formatted_players}
   end
 end
