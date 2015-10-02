@@ -107,7 +107,7 @@ defmodule Q3ex.Client do
 
   def parse_get_status(packet) do
     [event, cvars | players] = String.split(to_string(packet), "\n", trim: true)
-    cvar_list = String.split(cvars, "\\", trim: true) |> Enum.chunk(2) |> Enum.map(fn (elem) -> List.to_tuple(elem) end)
+    cvar_list = String.split(cvars, "\\", trim: true) |> Enum.chunk(2) |> Enum.map &List.to_tuple(&1)
 
     formatted_players = Enum.map players, fn (player) ->
       String.replace(player, ~r/"(.+)"/, "\\1\\") |> String.replace("^w*ES*", "") |> String.replace("\\", "") |> String.split()
