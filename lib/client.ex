@@ -75,20 +75,16 @@ defmodule Q3ex.Client do
   end
 
   def handle_call({:connect, address, port}, from, state) do
-    case start_connection({self, address, port}) do
-      {:ok, connection} ->
-        Process.link(connection)
-        new_state = %{
-          connection: connection,
-          poll_rate: state.poll_rate,
-          player_list: state.player_list,
-          cvar_list: state.cvar_list
-        }
+    connection = start_connection({self, address, port})
+    Process.link(connection)
+    new_state = %{
+      connection: connection,
+      poll_rate: state.poll_rate,
+      player_list: state.player_list,
+      cvar_list: state.cvar_list
+    }
 
-        {:reply, {:ok, self}, new_state}
-
-      {:err} -> {:reply, {:err}, state}
-    end
+    {:reply, {:ok, self}, new_state}
   end
 
   def handle_call(:get_status, from, state) do

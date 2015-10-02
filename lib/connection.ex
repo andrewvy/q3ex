@@ -2,20 +2,13 @@ defmodule Q3ex.Connection do
   @get_status_packet <<255, 255, 255, 255>> <> "getstatus"
 
   def connect({client_pid, addr, port})do
-    {:ok, socket} = :gen_udp.open(port, [])
-
-    :gen_udp.send(socket, addr, port, @get_status_packet)
-
-    receive do
-      {udp, socket, host, port, binary} ->
-        GenServer.cast client_pid, {:msg_receive, binary}
-        {:ok, spawn fn -> Q3ex.Connection.server({client_pid, socket, addr, port}) end}
-      after 1000 ->
-        {:err}
-    end
+    spawn fn -> Q3ex.Connection.server({client_pid, addr, port}) end
   end
 
-  def server({client_pid, socket, addr, port}) do
+  def server({client_pid, addr, port}) do
+    {:ok, socket} = :gen_udp.open(port, [])
+    :gen_udp.send(socket, addr, port, @get_status_packet)
+
     loop({client_pid, socket, addr, port})
   end
 
