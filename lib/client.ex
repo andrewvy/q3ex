@@ -42,6 +42,8 @@ defmodule Q3ex.Client do
           cvar_list: cvar_list
         }
 
+        GenServer.cast(self, :poll)
+
         {:noreply, new_state}
 
       _ -> {:noreply, state}
@@ -57,6 +59,19 @@ defmodule Q3ex.Client do
     }
 
     {:noreply, new_state}
+  end
+
+  def handle_cast(:poll, state) do
+    send state.connection, {:get_status}
+
+    parent_process = self
+
+    spawn fn ->
+      :timer.sleep(state.poll_rate)
+      GenServer.cast(parent_process, :poll)
+    end
+
+    {:noreply, state}
   end
 
   def handle_call({:connect, address, port}, from, state) do
@@ -84,9 +99,8 @@ defmodule Q3ex.Client do
     super request, from, state
   end
 
-
   def handle_info(request, state) do
-    IO.puts request
+    {:noreply, state}
   end
 
   # PACKET HANDLE
